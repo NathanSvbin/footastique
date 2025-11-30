@@ -1,5 +1,5 @@
 // getTeam.js
-import Fotmob from "../node_modules/@max-xoo/fotmob/dist/fotmob.js"; // chemin vers ton node_modules
+import Fotmob from './node_modules/@max-xoo/fotmob/dist/fotmob.js';
 import fs from "fs";
 import path from "path";
 
