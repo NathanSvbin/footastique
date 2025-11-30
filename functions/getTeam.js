@@ -1,40 +1,74 @@
 // getTeam.js
-import Fotmob from './node_modules/@max-xoo/fotmob/dist/fotmob.js';
-import fs from "fs";
-import path from "path";
+// Netlify Function inline avec Fotmob
+import axios from "axios";
 
-// Initialisation
-const fotmob = new Fotmob();
+// ------------------------------
+// Code inline de Fotmob (simplifié pour getTeam)
+// ------------------------------
+class Fotmob {
+    constructor() {
+        this.cache = new Map();
+        this.xmas = undefined;
+        this.baseUrl = "https://www.fotmob.com/api/";
+        this.axiosInstance = axios.create({
+            baseURL: this.baseUrl,
+            timeout: 10000,
+            headers: {
+                "Accept": "application/json",
+                "User-Agent": "Mozilla/5.0"
+            }
+        });
 
-// Fonction principale pour récupérer une équipe
-export async function loadTeam(teamId) {
-    if (!teamId) throw new Error("Id d'équipe manquant");
+        this.axiosInstance.interceptors.request.use(async (config) => {
+            if (!this.xmas) {
+                await this.ensureInitialized();
+            }
+            config.headers["x-mas"] = this.xmas;
+            return config;
+        });
+    }
 
-    console.log("⏳ Récupération des données pour l'équipe :", teamId);
+    async ensureInitialized() {
+        if (!this.xmas) {
+            const response = await axios.get("http://46.101.91.154:6006/");
+            this.xmas = response.data["x-mas"];
+        }
+    }
 
-    try {
-        // Récupération des données via FotMob
-        const data = await fotmob.getTeam(teamId, "overview", "team", "Europe/London");
+    async safeTypeCastFetch(url) {
+        if (this.cache.has(url)) {
+            return JSON.parse(this.cache.get(url));
+        }
+        const response = await this.axiosInstance.get(url);
+        this.cache.set(url, JSON.stringify(response.data));
+        return response.data;
+    }
 
-        // Normalisation du squad pour que ce soit toujours un tableau
-        let squadGroups = data?.squad || [];
-        if (!Array.isArray(squadGroups)) squadGroups = Object.values(squadGroups);
-
-        // Sauvegarde JSON locale (optionnel)
-        const outputFile = path.resolve(`team_${teamId}.json`);
-        fs.writeFileSync(outputFile, JSON.stringify(data, null, 2), "utf8");
-
-        console.log(`✅ Données enregistrées dans ${outputFile}`);
-        return data;
-
-    } catch (err) {
-        console.error("❌ Erreur lors de la récupération :", err);
-        return null;
+    async getTeam(id, tab = "overview", type = "team", timeZone = "Europe/London") {
+        const url = `teams?id=${id}&tab=${tab}&type=${type}&timeZone=${timeZone}`;
+        return await this.safeTypeCastFetch(url);
     }
 }
 
-// Exécution directe depuis la ligne de commande
-if (process.argv[2]) {
-    const id = process.argv[2];
-    loadTeam(id);
+// ------------------------------
+// Export Netlify Function
+// ------------------------------
+export async function handler(event) {
+    try {
+        const teamId = event.queryStringParameters?.id;
+        if (!teamId) {
+            return { statusCode: 400, body: JSON.stringify({ error: "Missing team id" }) };
+        }
+
+        const fotmob = new Fotmob();
+        const data = await fotmob.getTeam(teamId);
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify(data),
+            headers: { "Content-Type": "application/json" }
+        };
+    } catch (err) {
+        return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    }
 }
