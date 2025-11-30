@@ -1,32 +1,40 @@
-import Fotmob from "../node_modules/@max-xoo/fotmob/dist/fotmob.js";
+// getTeam.js
+import Fotmob from "../node_modules/@max-xoo/fotmob/dist/fotmob.js"; // chemin vers ton node_modules
+import fs from "fs";
+import path from "path";
 
+// Initialisation
 const fotmob = new Fotmob();
 
-export async function handler(event, context) {
-  const teamId = event.queryStringParameters?.id;
-  if (!teamId) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "id manquant" }),
-    };
-  }
+// Fonction principale pour récupérer une équipe
+export async function loadTeam(teamId) {
+    if (!teamId) throw new Error("Id d'équipe manquant");
 
-  try {
-    const teamData = await fotmob.getTeam(teamId, "overview", "team", "Europe/London");
-    
-    let squadGroups = teamData?.squad || [];
-    if (!Array.isArray(squadGroups)) squadGroups = Object.values(squadGroups);
+    console.log("⏳ Récupération des données pour l'équipe :", teamId);
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ info: teamData, squad: { squad: squadGroups } }),
-      headers: { "Content-Type": "application/json" },
-    };
-  } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
-      headers: { "Content-Type": "application/json" },
-    };
-  }
+    try {
+        // Récupération des données via FotMob
+        const data = await fotmob.getTeam(teamId, "overview", "team", "Europe/London");
+
+        // Normalisation du squad pour que ce soit toujours un tableau
+        let squadGroups = data?.squad || [];
+        if (!Array.isArray(squadGroups)) squadGroups = Object.values(squadGroups);
+
+        // Sauvegarde JSON locale (optionnel)
+        const outputFile = path.resolve(`team_${teamId}.json`);
+        fs.writeFileSync(outputFile, JSON.stringify(data, null, 2), "utf8");
+
+        console.log(`✅ Données enregistrées dans ${outputFile}`);
+        return data;
+
+    } catch (err) {
+        console.error("❌ Erreur lors de la récupération :", err);
+        return null;
+    }
+}
+
+// Exécution directe depuis la ligne de commande
+if (process.argv[2]) {
+    const id = process.argv[2];
+    loadTeam(id);
 }
