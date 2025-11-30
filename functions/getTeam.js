@@ -1,4 +1,4 @@
-import Fotmob from "@max-xoo/fotmob";
+import Fotmob from "../node_modules/@max-xoo/fotmob/dist/fotmob.js";
 
 const fotmob = new Fotmob();
 
