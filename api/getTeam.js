@@ -1,10 +1,8 @@
-// getTeam.js
-// Netlify Function inline avec Fotmob
+// api/getTeam.js (Vercel)
+// Fonction Fotmob + handler compatible Vercel
+
 import axios from "axios";
 
-// ------------------------------
-// Code inline de Fotmob (simplifié pour getTeam)
-// ------------------------------
 class Fotmob {
     constructor() {
         this.cache = new Map();
@@ -50,25 +48,23 @@ class Fotmob {
     }
 }
 
-// ------------------------------
-// Export Netlify Function
-// ------------------------------
-export async function handler(event) {
+// ---------------------------------------------------
+// HANDLER VERSION VERCEL 🌟
+// ---------------------------------------------------
+export default async function handler(req, res) {
     try {
-        const teamId = event.queryStringParameters?.id;
+        const teamId = req.query.id;
+
         if (!teamId) {
-            return { statusCode: 400, body: JSON.stringify({ error: "Missing team id" }) };
+            return res.status(400).json({ error: "Missing team id" });
         }
 
         const fotmob = new Fotmob();
         const data = await fotmob.getTeam(teamId);
 
-        return {
-            statusCode: 200,
-            body: JSON.stringify(data),
-            headers: { "Content-Type": "application/json" }
-        };
+        return res.status(200).json(data);
+
     } catch (err) {
-        return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+        return res.status(500).json({ error: err.message });
     }
 }
